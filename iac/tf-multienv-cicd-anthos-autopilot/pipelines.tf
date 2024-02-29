@@ -19,15 +19,15 @@ module "ci-cd-pipeline" {
   # create CICD pipeline per team
   for_each = toset(local.services)
 
-  project_id = var.project_id
-  region = var.region
+  project_id         = var.project_id
+  region             = var.region
   container_registry = google_artifact_registry_repository.container_registry
-  repo_owner = var.repo_owner
-  repo_name = var.sync_repo
-  service = each.value
-  targets = [google_clouddeploy_target.staging, google_clouddeploy_target.production]
-  repo_branch = var.sync_branch
-  cloud_deploy_sa = google_service_account.cloud_deploy
+  repo_owner         = var.repo_owner
+  repo_name          = var.sync_repo
+  service            = each.value
+  targets            = [google_clouddeploy_target.staging, google_clouddeploy_target.production]
+  repo_branch        = var.sync_branch
+  cloud_deploy_sa    = google_service_account.cloud_deploy
 
   depends_on = [
     module.enabled_google_apis
@@ -90,6 +90,9 @@ resource "google_storage_bucket" "delivery_artifacts_staging" {
   name                        = "delivery-artifacts-staging-${data.google_project.project.number}"
   uniform_bucket_level_access = true
   location                    = var.region
+  labels = {
+    yor_trace = "c6942149-6f8e-49e6-bb86-04e595df769e"
+  }
 }
 
 # GCS bucket used by Cloud Deploy for delivery artifact storage
@@ -98,11 +101,14 @@ resource "google_storage_bucket" "delivery_artifacts_production" {
   name                        = "delivery-artifacts-production-${data.google_project.project.number}"
   uniform_bucket_level_access = true
   location                    = var.region
+  labels = {
+    yor_trace = "c374979e-d7d8-4dae-af56-ae7eaf37d097"
+  }
 }
 
 # give CloudDeploy SA access to administrate to delivery artifact bucket
 resource "google_storage_bucket_iam_member" "delivery_artifacts_staging" {
-  bucket  = google_storage_bucket.delivery_artifacts_staging.name
+  bucket = google_storage_bucket.delivery_artifacts_staging.name
 
   member = "serviceAccount:${google_service_account.cloud_deploy.email}"
   role   = "roles/storage.admin"
@@ -110,7 +116,7 @@ resource "google_storage_bucket_iam_member" "delivery_artifacts_staging" {
 
 # give CloudDeploy SA access to administrate to delivery artifact bucket
 resource "google_storage_bucket_iam_member" "delivery_artifacts_production" {
-  bucket  = google_storage_bucket.delivery_artifacts_production.name
+  bucket = google_storage_bucket.delivery_artifacts_production.name
 
   member = "serviceAccount:${google_service_account.cloud_deploy.email}"
   role   = "roles/storage.admin"
@@ -124,6 +130,9 @@ resource "google_storage_bucket" "build_cache_pr" {
   uniform_bucket_level_access = true
   location                    = var.region
   force_destroy               = true
+  labels = {
+    yor_trace = "ace8f856-a502-4b12-ae26-2ae5529c1884"
+  }
 }
 
 # Initialize cache with empty file
@@ -157,23 +166,23 @@ resource "google_storage_bucket_iam_member" "build_cache" {
 
 # CI trigger configuration
 resource "google_cloudbuild_trigger" "ci-pr" {
-  name = "pull-request-ci"
+  name     = "pull-request-ci"
   location = var.region
 
   github {
-      owner = var.repo_owner
-      name = var.sync_repo
+    owner = var.repo_owner
+    name  = var.sync_repo
 
-      pull_request {
-        branch = ".*"
-        comment_control = "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
-      }
+    pull_request {
+      branch          = ".*"
+      comment_control = "COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY"
+    }
   }
   filename = ".github/cloudbuild/ci-pr.yaml"
   substitutions = {
-      _CACHE_URI = "gs://${google_storage_bucket.build_cache_pr.name}/${google_storage_bucket_object.cache.name}"
-      _CONTAINER_REGISTRY = "${google_artifact_registry_repository.container_registry.location}-docker.pkg.dev/${google_artifact_registry_repository.container_registry.project}/${google_artifact_registry_repository.container_registry.repository_id}"
-      _CACHE = local.cache_filename
+    _CACHE_URI          = "gs://${google_storage_bucket.build_cache_pr.name}/${google_storage_bucket_object.cache.name}"
+    _CONTAINER_REGISTRY = "${google_artifact_registry_repository.container_registry.location}-docker.pkg.dev/${google_artifact_registry_repository.container_registry.project}/${google_artifact_registry_repository.container_registry.repository_id}"
+    _CACHE              = local.cache_filename
   }
   service_account = google_service_account.cloud_build_pr.id
 }

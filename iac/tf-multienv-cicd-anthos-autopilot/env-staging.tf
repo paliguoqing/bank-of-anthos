@@ -22,7 +22,7 @@ provider "kubernetes" {
 
 # staging autopilot cluster
 module "gke_staging" {
-  source = "terraform-google-modules/kubernetes-engine/google//modules/beta-autopilot-private-cluster"
+  source  = "terraform-google-modules/kubernetes-engine/google//modules/beta-autopilot-private-cluster"
   version = "29.0.0"
 
   project_id              = var.project_id
@@ -116,6 +116,9 @@ resource "google_gke_hub_membership" "staging" {
   }
   authority {
     issuer = "https://container.googleapis.com/v1/${module.gke_staging.cluster_id}"
+  }
+  labels = {
+    yor_trace = "1f68b576-1276-4234-9520-73b5e963e463"
   }
 }
 
